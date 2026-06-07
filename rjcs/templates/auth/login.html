@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线考试系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 400px; }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; font-size: 24px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 6px; color: #555; font-weight: 500; }
+        input, select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: #667eea; }
+        button { width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+        button:hover { opacity: 0.9; }
+        .register-link { text-align: center; margin-top: 20px; font-size: 14px; color: #666; }
+        .register-link a { color: #667eea; text-decoration: none; }
+        .msg { padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
+        .msg.error { background: #fee; color: #c33; border: 1px solid #fcc; }
+        .msg.success { background: #efe; color: #3c3; border: 1px solid #cfc; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>在线考试系统</h1>
+        <div id="msg-box"></div>
+        <form id="login-form">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" name="username" id="username" required placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" name="password" id="password" required placeholder="请输入密码">
+            </div>
+            <button type="submit">登录</button>
+        </form>
+        <div class="register-link">
+            没有账号？<a href="/auth/register">立即注册</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const msgBox = document.getElementById('msg-box');
+            msgBox.innerHTML = '';
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            try {
+                const res = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (data.code === 200) {
+                    msgBox.innerHTML = '<div class="msg success">登录成功！正在跳转...</div>';
+                    setTimeout(() => { window.location.href = '/dashboard'; }, 500);
+                } else {
+                    msgBox.innerHTML = '<div class="msg error">' + data.message + '</div>';
+                }
+            } catch (err) {
+                msgBox.innerHTML = '<div class="msg error">网络错误，请重试</div>';
+            }
+        });
+    </script>
+</body>
+</html>

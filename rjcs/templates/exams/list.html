@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考试列表</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #f0f2f5; }
+        .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0 30px; height: 60px; display: flex; align-items: center; justify-content: space-between; color: white; }
+        .navbar .brand { font-size: 20px; font-weight: bold; }
+        .navbar a { color: white; text-decoration: none; cursor: pointer; }
+        .sidebar { width: 220px; background: white; height: calc(100vh - 60px); padding: 20px 0; position: fixed; top: 60px; left: 0; box-shadow: 2px 0 10px rgba(0,0,0,0.05); overflow-y: auto; }
+        .sidebar .role-title { padding: 10px 25px 5px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+        .sidebar a { display: block; padding: 10px 25px; color: #555; text-decoration: none; transition: all 0.2s; }
+        .sidebar a:hover { background: #f0f2f5; color: #667eea; }
+        .sidebar a.active { background: #f0f4ff; color: #667eea; border-left: 3px solid #667eea; }
+        .main-content { margin-left: 220px; padding: 30px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .page-header h1 { color: #333; }
+        button, .btn { padding: 8px 18px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 14px; text-decoration: none; display: inline-block; }
+        button:hover, .btn:hover { opacity: 0.85; }
+        button.danger { background: #e74c3c; }
+        button.success { background: #27ae60; }
+        button.secondary { background: #6c757d; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        table { width: 100%; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #555; font-weight: 600; font-size: 13px; }
+        tbody tr:hover { background: #f8f9ff; }
+        .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; display: inline-block; }
+        .badge.published { background: #e8f5e9; color: #2e7d32; }
+        .badge.draft { background: #f5f5f5; color: #888; }
+        .badge.taken { background: #e3f2fd; color: #1565c0; }
+        .empty-state { text-align: center; padding: 60px; color: #999; background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .empty-state .icon { font-size: 48px; margin-bottom: 15px; }
+        .info-tag { display: inline-block; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #666; margin-right: 8px; }
+        .action-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+        .desc-text { color: #888; font-size: 13px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 550px; }
+        .modal-content h2 { margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #555; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit; }
+        .form-group textarea { height: 80px; resize: vertical; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .msg { padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
+        .msg.error { background: #fee; color: #c33; }
+        .msg.success { background: #efe; color: #3c3; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+        .tab-btn { padding: 8px 20px; background: #f0f0f0; color: #666; border: none; border-radius: 6px 6px 0 0; cursor: pointer; font-family: inherit; font-size: 14px; }
+        .tab-btn.active { background: white; color: #667eea; font-weight: bold; border-bottom: 2px solid #667eea; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="brand">在线考试系统</div>
+        <a onclick="logout()">退出登录</a>
+    </div>
+    <div class="sidebar">
+        <div class="role-title">主菜单</div>
+        <a href="/dashboard">控制台首页</a>
+
+        {% if role == 'admin' or role == 'teacher' %}
+        <div class="role-title">题库管理</div>
+        <a href="/questions">题库管理</a>
+        <div class="role-title">考试管理</div>
+        <a href="/exams" class="active">考试列表</a>
+        {% endif %}
+
+        {% if role == 'student' %}
+        <div class="role-title">我的考试</div>
+        <a href="/exams" class="active">参加考试</a>
+        <a href="/scores">我的成绩</a>
+        {% endif %}
+
+        {% if role == 'admin' %}
+        <div class="role-title">系统管理</div>
+        <a href="/admin/users">用户管理</a>
+        {% endif %}
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1 id="page-title">考试列表</h1>
+            <div id="header-actions"></div>
+        </div>
+
+        {% if role == 'student' %}
+        <div class="tabs">
+            <button class="tab-btn active" onclick="filterTab('available')" id="tab-available">可参加</button>
+            <button class="tab-btn" onclick="filterTab('taken')" id="tab-taken">已完成</button>
+        </div>
+        {% endif %}
+
+        <div id="msg-box"></div>
+
+        <div id="exam-list"></div>
+
+        <div id="pagination" style="margin-top:20px; text-align:center;"></div>
+    </div>
+
+    <!-- 创建考试弹窗（仅教师/管理员可见） -->
+    {% if role == 'admin' or role == 'teacher' %}
+    <div class="modal" id="exam-modal">
+        <div class="modal-content">
+            <h2>创建考试</h2>
+            <div id="modal-msg"></div>
+            <form id="exam-form">
+                <div class="form-group"><label>考试名称</label><input type="text" id="e-title" required placeholder="如：Python基础测验"></div>
+                <div class="form-group"><label>描述说明</label><textarea id="e-desc" placeholder="简要说明考试范围和内容..."></textarea></div>
+                <div class="form-group"><label>考试时长（分钟）</label><input type="number" id="e-duration" value="60" min="1" max="300"></div>
+                <div class="form-group"><label>题目数量</label><input type="number" id="e-qcount" value="5" min="1" max="100"></div>
+                <div class="form-group"><label>题目分类筛选（可选）</label><input type="text" id="e-category" placeholder="如：Python，留空则不限制"></div>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeModal()">取消</button>
+                    <button type="submit">创建考试</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        const ROLE = "{{ role }}";
+        let currentPage = 1;
+        let currentTab = "available"; // student tabs
+
+        async function loadExams(page = 1) {
+            currentPage = page;
+            try {
+                let url = `/api/exams?page=${page}&page_size=10`;
+                if (ROLE === 'student' && currentTab === 'available') {
+                    url = `/api/exams?published_only=true&page=${page}&page_size=10`;
+                }
+
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.code !== 200) return;
+
+                renderExamList(data.data.items, data.data.total);
+                renderPagination(data.data.total);
+            } catch(e) { console.error(e); }
+        }
+
+        function renderExamList(exams, total) {
+            const container = document.getElementById('exam-list');
+
+            if (!exams || exams.length === 0) {
+                const emptyText = ROLE === 'student'
+                    ? (currentTab === 'available' ? '暂无可参加的考试' : '暂无已完成记录')
+                    : '暂无考试';
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📋</div>
+                        <p>${emptyText}</p>
+                    </div>`;
+                return;
+            }
+
+            const isTeacher = ROLE === 'admin' || ROLE === 'teacher';
+            let html = `<table><thead><tr>
+                <th>考试名称</th>
+                <th>描述</th>
+                <th>时长</th>
+                <th>题目数</th>
+                <th>总分</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr></thead><tbody>`;
+
+            exams.forEach(e => {
+                const statusBadge = e.is_published
+                    ? '<span class="badge published">已发布</span>'
+                    : '<span class="badge draft">草稿</span>';
+
+                if (isTeacher) {
+                    html += `<tr>
+                        <td><b>${e.title}</b></td>
+                        <td class="desc-text">${e.description || '-'}</td>
+                        <td>${e.duration}分钟</td>
+                        <td>${e.question_count}</td>
+                        <td>${e.total_score}</td>
+                        <td>${statusBadge}</td>
+                        <td class="action-btns">
+                            <button onclick="location.href='/exams/${e.id}'">查看</button>
+                            ${!e.is_published ? `<button class="success" onclick="publishExam(${e.id})">发布</button>` : ''}
+                            <button onclick="cloneExam(${e.id})" style="background:#f39c12">克隆</button>
+                            <button onclick="deleteExam(${e.id})" style="background:#e74c3c">删除</button>
+                        </td>
+                    </tr>`;
+                } else {
+                    // Student view
+                    html += `<tr>
+                        <td><b>${e.title}</b></td>
+                        <td class="desc-text">${e.description || '-'}</td>
+                        <td>${e.duration}分钟</td>
+                        <td>${e.question_count}题</td>
+                        <td>${e.total_score}分</td>
+                        <td>${statusBadge}</td>
+                        <td class="action-btns">
+                            <button class="success" onclick="location.href='/exams/${e.id}'">参加考试</button>
+                        </td>
+                    </tr>`;
+                }
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function renderPagination(total) {
+            const totalPages = Math.max(1, Math.ceil(total / 10));
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML =
+                (currentPage > 1 ? `<button onclick="loadExams(${currentPage-1})">上一页</button> ` : '') +
+                `第 ${currentPage} / ${totalPages} 页 ` +
+                (currentPage < totalPages ? `<button onclick="loadExams(${currentPage+1})">下一页</button>` : '');
+        }
+
+        function filterTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            currentPage = 1;
+            loadExams(1);
+        }
+
+        function showCreateModal() { document.getElementById('exam-modal').classList.add('show'); }
+        function closeModal() { document.getElementById('exam-modal').classList.remove('show'); }
+
+        document.getElementById('exam-form') && document.getElementById('exam-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const payload = {
+                title: document.getElementById('e-title').value,
+                description: document.getElementById('e-desc').value,
+                duration: parseInt(document.getElementById('e-duration').value),
+                question_count: parseInt(document.getElementById('e-qcount').value),
+                category: document.getElementById('e-category').value || null
+            };
+
+            const res = await fetch('/api/exams', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const data = await res.json();
+            const msgBox = document.getElementById('modal-msg');
+
+            if (data.code === 200) {
+                msgBox.innerHTML = '<div class="msg success">考试创建成功！</div>';
+                setTimeout(() => { closeModal(); loadExams(currentPage); }, 800);
+            } else {
+                msgBox.innerHTML = '<div class="msg error">' + data.message + '</div>';
+            }
+        });
+
+        async function publishExam(id) {
+            await fetch(`/api/exams/${id}/publish`, { method: 'POST' });
+            loadExams(currentPage);
+        }
+
+        async function deleteExam(id) {
+            if (!confirm('确定要删除此考试吗？删除后学生成绩也将清除！')) return;
+            await fetch(`/api/exams/${id}`, { method: 'DELETE' });
+            loadExams(currentPage);
+        }
+
+        async function cloneExam(id) {
+            if (!confirm('确定克隆此考试吗？')) return;
+            const res = await fetch(`/api/exams/${id}/clone`, { method: 'POST' });
+            const data = await res.json();
+            const msgBox = document.getElementById('msg-box');
+            if (data.code === 200) {
+                msgBox.innerHTML = '<div class="msg success">克隆成功！新考试名称：' + (data.data && data.data.title ? data.data.title : '复制考试') + '</div>';
+                loadExams(currentPage);
+            } else {
+                msgBox.innerHTML = '<div class="msg error">克隆失败：' + data.message + '</div>';
+            }
+        }
+
+        async function logout() {
+            await fetch('/auth/logout', { method: 'POST' });
+            window.location.href = '/auth/login';
+        }
+
+        // Set page title and buttons based on role
+        if (ROLE === 'student') {
+            document.getElementById('page-title').textContent = '参加考试';
+        } else {
+            document.getElementById('page-title').textContent = '考试管理';
+            document.getElementById('header-actions').innerHTML = '<button onclick="showCreateModal()">+ 创建考试</button>';
+        }
+
+        loadExams();
+    </script>
+</body>
+</html>

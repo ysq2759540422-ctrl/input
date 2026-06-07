@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题库管理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #f0f2f5; }
+        .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0 30px; height: 60px; display: flex; align-items: center; justify-content: space-between; color: white; }
+        .navbar .brand { font-size: 20px; font-weight: bold; }
+        .navbar a { color: white; text-decoration: none; cursor: pointer; }
+        .sidebar { width: 220px; background: white; height: calc(100vh - 60px); padding: 20px 0; position: fixed; top: 60px; left: 0; box-shadow: 2px 0 10px rgba(0,0,0,0.05); overflow-y: auto; }
+        .sidebar .role-title { padding: 10px 25px 5px; font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+        .sidebar a { display: block; padding: 10px 25px; color: #555; text-decoration: none; }
+        .sidebar a:hover { background: #f0f2f5; color: #667eea; }
+        .sidebar a.active { background: #f0f4ff; color: #667eea; border-left: 3px solid #667eea; }
+        .main-content { margin-left: 220px; padding: 30px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .page-header h1 { color: #333; }
+        button, .btn { padding: 8px 18px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 14px; }
+        button:hover { opacity: 0.85; }
+        button.danger { background: #e74c3c; }
+        button.success { background: #27ae60; }
+        button.warning { background: #f39c12; }
+        table { width: 100%; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #555; font-weight: 600; font-size: 13px; }
+        tbody tr:hover { background: #f8f9ff; }
+        .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; display: inline-block; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 600px; max-height: 90vh; overflow-y: auto; }
+        .modal-content h2 { margin-bottom: 20px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #555; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit; }
+        .form-group textarea { height: 80px; resize: vertical; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .msg { padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
+        .msg.error { background: #fee; color: #c33; }
+        .msg.success { background: #efe; color: #3c3; }
+        .filter-bar { background: white; padding: 16px 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .filter-bar select, .filter-bar input { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; }
+        .filter-bar button { padding: 6px 14px; font-size: 13px; }
+        .stat-bar { background: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 30px; font-size: 13px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .stat-bar span { color: #888; }
+        .stat-bar b { color: #333; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="brand">在线考试系统</div>
+        <a onclick="logout()">退出登录</a>
+    </div>
+    <div class="sidebar">
+        <div class="role-title">主菜单</div>
+        <a href="/dashboard">控制台首页</a>
+        <div class="role-title">题库管理</div>
+        <a href="/questions" class="active">题库管理</a>
+        <div class="role-title">考试管理</div>
+        <a href="/exams">考试列表</a>
+        <div class="role-title">成绩管理</div>
+        <a href="/scores/all">成绩查询</a>
+        {% if role == 'admin' %}
+        <div class="role-title">系统管理</div>
+        <a href="/admin/users">用户管理</a>
+        {% endif %}
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>题库管理</h1>
+        </div>
+
+        <div class="stat-bar">
+
+        <div class="stat-bar">
+            <span>总题目数：<b id="stat-total">-</b></span>
+            <span>单选题：<b id="stat-single">-</b></span>
+            <span>多选题：<b id="stat-multi">-</b></span>
+        </div>
+
+        <div style="margin-bottom:20px;">
+            <button onclick="showCreateModal()">+ 创建题目</button>
+            <button onclick="showBatchModal()" style="background:#27ae60; margin-left:10px;">+ 批量创建</button>
+        </div>
+
+        <div class="filter-bar">
+            <label>难度：
+                <input type="text" id="filter-difficulty" placeholder="输入难度关键词" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px">
+            </label>
+            <label>分类：
+                <input type="text" id="filter-category" placeholder="输入分类名称" onkeydown="if(event.key==='Enter')applyFilters()">
+            </label>
+            <button onclick="applyFilters()">筛选</button>
+            <button onclick="clearFilters()" style="background:#6c757d">重置</button>
+        </div>
+
+        <div id="msg-box"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th><th>题目标题</th><th>分类</th><th>难度</th><th>分值</th><th>题型</th><th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+        <div id="pagination" style="margin-top:20px; text-align:center;"></div>
+    </div>
+
+    <div class="modal" id="question-modal">
+        <div class="modal-content">
+            <h2 id="modal-title">创建题目</h2>
+            <div id="modal-msg"></div>
+            <form id="question-form">
+                <input type="hidden" id="q-id">
+                <div class="form-group"><label>标题</label><input type="text" id="q-title" required placeholder="简洁描述题目内容"></div>
+                <div class="form-group"><label>题目内容</label><textarea id="q-content" required placeholder="完整的题目描述..."></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>选项A</label><input type="text" id="q-option-a"></div>
+                    <div class="form-group"><label>选项B</label><input type="text" id="q-option-b"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>选项C</label><input type="text" id="q-option-c"></div>
+                    <div class="form-group"><label>选项D</label><input type="text" id="q-option-d"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>正确答案</label><input type="text" id="q-answer" required placeholder="如：A"></div>
+                    <div class="form-group"><label>题型</label>
+                        <select id="q-type">
+                            <option value="single">单选题</option>
+                            <option value="multiple">多选题</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>难度</label><input type="text" id="q-difficulty" value="中等" placeholder="请输入难度（如：简单、中等、困难）"></div>
+                    <div class="form-group"><label>分类</label><input type="text" id="q-category" value="Python"></div>
+                </div>
+                <div class="form-group"><label>分值</label><input type="number" id="q-score" value="5" placeholder="请输入分值"></div>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeModal()">取消</button>
+                    <button type="submit">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 批量创建弹窗 -->
+    <div class="modal" id="batch-modal">
+        <div class="modal-content" style="width:700px;">
+            <h2>批量创建题目</h2>
+            <div id="batch-msg"></div>
+            <p style="color:#888; font-size:13px; margin-bottom:15px;">
+                请按以下格式输入题目（每道题之间用空行分隔，字段名用英文冒号）：
+            </p>
+            <textarea id="batch-data" rows="18"
+                placeholder="title: Python基础题
+content: 下列哪个是Python的变量名？
+answer: A
+type: single
+difficulty: 简单
+score: 5
+option_a: 123abc
+option_b: abc123
+option_c: abc
+option_d: 123
+
+title: 第二题标题
+content: 第二题内容
+answer: B
+type: single
+difficulty: 中等
+score: 10
+option_a: 选项A
+option_b: 选项B
+option_c: 选项C
+option_d: 选项D"
+                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; font-family:Consolas; font-size:13px; resize:vertical;"></textarea>
+            <div style="margin-top:10px; font-size:13px; color:#888;">
+                共识别出 <b id="batch-count">0</b> 道题目
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="closeBatchModal()">取消</button>
+                <button type="button" onclick="previewBatch()">预览</button>
+                <button type="button" onclick="submitBatch()" style="background:#27ae60;">确认创建</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let currentFilters = { difficulty: '', category: '' };
+
+        async function loadQuestions(page = 1) {
+            currentPage = page;
+            try {
+                let url = `/api/questions?page=${page}&page_size=10`;
+                if (currentFilters.difficulty) url += `&difficulty=${currentFilters.difficulty}`;
+                if (currentFilters.category) url += `&category=${encodeURIComponent(currentFilters.category)}`;
+
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.code !== 200) return;
+
+                // Update stats
+                const statRes = await fetch('/api/questions/statistics');
+                const statData = await statRes.json();
+                if (statData.code === 200 && statData.data) {
+                    document.getElementById('stat-total').textContent = statData.data.total || 0;
+                    document.getElementById('stat-single').textContent = (statData.data.total || 0);
+                    document.getElementById('stat-multi').textContent = 0;
+                }
+
+                const typeMap = { single: '单选题', multiple: '多选题' };
+
+                document.getElementById('tbody').innerHTML = data.data.items.map(q => `
+                    <tr>
+                        <td>${q.id}</td>
+                        <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="${q.title}">${q.title}</td>
+                        <td>${q.category}</td>
+                        <td>${q.difficulty || '-'}</td>
+                        <td>${q.score}分</td>
+                        <td>${typeMap[q.type] || q.type}</td>
+                        <td>
+                            <button onclick="editQuestion(${q.id})" style="padding:4px 10px; font-size:12px">编辑</button>
+                            <button onclick="deleteQuestion(${q.id})" style="padding:4px 10px; font-size:12px; background:#e74c3c">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                const totalPages = Math.max(1, Math.ceil(data.data.total / 10));
+                document.getElementById('pagination').innerHTML =
+                    (page > 1 ? `<button onclick="loadQuestions(${page-1})">上一页</button> ` : '') +
+                    `第 ${page} / ${totalPages} 页（共${data.data.total}条）` +
+                    (page < totalPages ? ` <button onclick="loadQuestions(${page+1})">下一页</button>` : '');
+            } catch(e) { console.error(e); }
+        }
+
+        function applyFilters() {
+            currentFilters.difficulty = document.getElementById('filter-difficulty').value.trim();
+            currentFilters.category = document.getElementById('filter-category').value.trim();
+            loadQuestions(1);
+        }
+
+        function clearFilters() {
+            document.getElementById('filter-difficulty').value = '';
+            document.getElementById('filter-category').value = '';
+            currentFilters = { difficulty: '', category: '' };
+            loadQuestions(1);
+        }
+
+        function showCreateModal() {
+            document.getElementById('modal-title').textContent = '创建题目';
+            document.getElementById('q-id').value = '';
+            document.getElementById('question-form').reset();
+            document.getElementById('question-modal').classList.add('show');
+        }
+
+        async function editQuestion(id) {
+            const res = await fetch(`/api/questions/${id}`);
+            const data = await res.json();
+            if (data.code !== 200) return;
+            const q = data.data;
+            document.getElementById('modal-title').textContent = '编辑题目';
+            document.getElementById('q-id').value = q.id;
+            document.getElementById('q-title').value = q.title;
+            document.getElementById('q-content').value = q.content;
+            document.getElementById('q-option-a').value = q.option_a || '';
+            document.getElementById('q-option-b').value = q.option_b || '';
+            document.getElementById('q-option-c').value = q.option_c || '';
+            document.getElementById('q-option-d').value = q.option_d || '';
+            document.getElementById('q-answer').value = q.answer;
+            document.getElementById('q-type').value = q.type;
+            document.getElementById('q-difficulty').value = q.difficulty;
+            document.getElementById('q-category').value = q.category;
+            document.getElementById('q-score').value = q.score;
+            document.getElementById('question-modal').classList.add('show');
+        }
+
+        function closeModal() { document.getElementById('question-modal').classList.remove('show'); }
+
+        document.getElementById('question-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('q-id').value;
+            const payload = {
+                title: document.getElementById('q-title').value,
+                content: document.getElementById('q-content').value,
+                option_a: document.getElementById('q-option-a').value,
+                option_b: document.getElementById('q-option-b').value,
+                option_c: document.getElementById('q-option-c').value,
+                option_d: document.getElementById('q-option-d').value,
+                answer: document.getElementById('q-answer').value,
+                type: document.getElementById('q-type').value,
+                difficulty: document.getElementById('q-difficulty').value,
+                category: document.getElementById('q-category').value,
+                score: parseInt(document.getElementById('q-score').value)
+            };
+            const url = id ? `/api/questions/${id}` : '/api/questions';
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const data = await res.json();
+            document.getElementById('modal-msg').innerHTML = data.code === 200
+                ? '<div class="msg success">保存成功！</div>'
+                : `<div class="msg error">${data.message}</div>`;
+            if (data.code === 200) setTimeout(() => { closeModal(); loadQuestions(currentPage); }, 800);
+        });
+
+        async function deleteQuestion(id) {
+            if (!confirm('确定要删除此题吗？')) return;
+            await fetch(`/api/questions/${id}`, { method: 'DELETE' });
+            loadQuestions(currentPage);
+        }
+
+        async function logout() {
+            await fetch('/auth/logout', { method: 'POST' });
+            location.href = '/auth/login';
+        }
+
+        // ====== 批量创建功能 ======
+        function showBatchModal() {
+            document.getElementById('batch-data').value = '';
+            document.getElementById('batch-count').textContent = '0';
+            document.getElementById('batch-msg').innerHTML = '';
+            document.getElementById('batch-modal').classList.add('show');
+        }
+        function closeBatchModal() {
+            document.getElementById('batch-modal').classList.remove('show');
+        }
+
+        document.getElementById('batch-data').addEventListener('input', function() {
+            parseBatchData();
+        });
+
+        function parseBatchData() {
+            const raw = document.getElementById('batch-data').value.trim();
+            const blocks = raw.split('\n\n');
+            let count = 0;
+            for (const block of blocks) {
+                if (block.trim().split('\n').some(l => l.startsWith('title:'))) count++;
+            }
+            document.getElementById('batch-count').textContent = count;
+            return count;
+        }
+
+        function previewBatch() {
+            const raw = document.getElementById('batch-data').value.trim();
+            const blocks = raw.split('\n\n');
+            const parsed = [];
+            for (const block of blocks) {
+                const lines = block.trim().split('\n');
+                if (!lines.length) continue;
+                const item = {};
+                for (const line of lines) {
+                    const idx = line.indexOf(':');
+                    if (idx === -1) continue;
+                    const key = line.substring(0, idx).trim();
+                    const val = line.substring(idx + 1).trim();
+                    item[key] = val;
+                }
+                if (item.title) parsed.push(item);
+            }
+            const msg = document.getElementById('batch-msg');
+            if (parsed.length === 0) {
+                msg.innerHTML = '<div class="msg error">未识别到有效题目，请检查格式</div>';
+            } else {
+                msg.innerHTML = `<div class="msg success">识别到 ${parsed.length} 道题目，点击"确认创建"开始创建</div>`;
+                document.getElementById('batch-count').textContent = parsed.length;
+            }
+        }
+
+        async function submitBatch() {
+            const raw = document.getElementById('batch-data').value.trim();
+            const blocks = raw.split('\n\n');
+            const questions_data = [];
+            for (const block of blocks) {
+                const lines = block.trim().split('\n');
+                if (!lines.length) continue;
+                const item = {};
+                for (const line of lines) {
+                    const idx = line.indexOf(':');
+                    if (idx === -1) continue;
+                    const key = line.substring(0, idx).trim();
+                    const val = line.substring(idx + 1).trim();
+                    item[key] = val;
+                }
+                if (item.title) questions_data.push(item);
+            }
+            if (questions_data.length === 0) {
+                alert('未识别到有效题目');
+                return;
+            }
+            const res = await fetch('/api/questions/batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ questions: questions_data })
+            });
+            const data = await res.json();
+            const msg = document.getElementById('batch-msg');
+            if (data.code === 200) {
+                msg.innerHTML = `<div class="msg success">批量创建成功！共创建 ${data.data && data.data.created_count ? data.data.created_count : questions_data.length} 道题目</div>`;
+                setTimeout(() => { closeBatchModal(); loadQuestions(currentPage); }, 1200);
+            } else {
+                msg.innerHTML = `<div class="msg error">创建失败：${data.message}</div>`;
+            }
+        }
+
+        loadQuestions();
+    </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>错误</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #f0f2f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .error-box { background: white; padding: 40px; border-radius: 12px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1 { color: #e74c3c; margin-bottom: 15px; }
+        p { color: #666; margin-bottom: 20px; }
+        a { color: #667eea; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="error-box">
+        <h1>出错了</h1>
+        <p>{{ message or '发生了未知错误' }}</p>
+        <a href="/dashboard">返回控制台</a>
+    </div>
+</body>
+</html>

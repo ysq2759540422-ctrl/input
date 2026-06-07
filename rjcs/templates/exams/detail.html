@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考试详情</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #f0f2f5; }
+        .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0 30px; height: 60px; display: flex; align-items: center; justify-content: space-between; color: white; }
+        .navbar .brand a { color: white; text-decoration: none; font-size: 20px; font-weight: bold; }
+        .navbar a { color: white; text-decoration: none; cursor: pointer; }
+        .main-content { margin-left: 60px; padding: 30px; max-width: 1000px; }
+        .back-link { display: inline-flex; align-items: center; gap: 6px; color: #667eea; text-decoration: none; font-size: 14px; margin-bottom: 20px; }
+        .back-link:hover { text-decoration: underline; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .page-header h1 { color: #333; }
+        .timer { background: white; padding: 15px 25px; border-radius: 10px; display: inline-block; font-size: 18px; font-weight: bold; color: #667eea; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .timer.warning { color: #e67e22; }
+        .timer.danger { color: #e74c3c; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        button, .btn { padding: 8px 18px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 14px; text-decoration: none; display: inline-block; }
+        button:hover, .btn:hover { opacity: 0.85; }
+        button.success { background: #27ae60; }
+        button.danger { background: #e74c3c; }
+        button.warning { background: #f39c12; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .card { background: white; padding: 25px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .card h2 { color: #333; margin-bottom: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .info-item { background: #f8f9fa; padding: 12px; border-radius: 8px; }
+        .info-item .label { font-size: 12px; color: #888; margin-bottom: 4px; }
+        .info-item .value { font-size: 18px; font-weight: bold; color: #333; }
+        .question-card { background: white; padding: 24px; border-radius: 10px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #667eea; }
+        .question-card .q-num { font-size: 12px; color: #667eea; font-weight: bold; margin-bottom: 8px; }
+        .question-card .q-title { font-weight: 600; color: #222; font-size: 16px; margin-bottom: 12px; line-height: 1.6; }
+        .question-card .q-content { color: #444; font-size: 14px; margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px; }
+        .option-item { display: flex; align-items: center; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s; }
+        .option-item:hover { background: #f0f4ff; border-color: #667eea; }
+        .option-item input[type="radio"], .option-item input[type="checkbox"] { margin-right: 10px; width: 16px; height: 16px; }
+        .option-item .opt-letter { font-weight: bold; color: #667eea; min-width: 24px; }
+        .option-item .opt-text { color: #333; font-size: 14px; }
+        .submit-bar { background: white; padding: 20px 30px; border-radius: 10px; box-shadow: 0 -2px 10px rgba(0,0,0,0.08); position: fixed; bottom: 0; left: 60px; right: 0; display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+        .progress-info { font-size: 14px; color: #666; }
+        .submit-bar .right { display: flex; gap: 12px; }
+        .msg { padding: 10px 16px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
+        .msg.error { background: #fee; color: #c33; border: 1px solid #fcc; }
+        .msg.success { background: #efe; color: #3c3; border: 1px solid #cfc; }
+        .msg.info { background: #eef; color: #1565c0; border: 1px solid #cce; }
+        .stat-table { width: 100%; border-collapse: collapse; }
+        .stat-table th, .stat-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #eee; }
+        .stat-table th { background: #f8f9fa; color: #555; font-weight: 600; }
+        .stat-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .stat-badge.high { background: #d4edda; color: #155724; }
+        .stat-badge.mid { background: #fff3cd; color: #856404; }
+        .stat-badge.low { background: #f8d7da; color: #721c24; }
+        .score-display { text-align: center; padding: 30px; }
+        .score-display .big-score { font-size: 64px; font-weight: bold; color: #667eea; }
+        .score-display .total { font-size: 24px; color: #888; }
+        .already-submitted { text-align: center; padding: 40px; color: #666; }
+        .already-submitted .icon { font-size: 48px; margin-bottom: 15px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; }
+        .modal-content h2 { margin-bottom: 20px; color: #333; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #555; font-weight: 500; font-size: 14px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .msg { padding: 10px 16px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
+        .msg.error { background: #fee; color: #c33; border: 1px solid #fcc; }
+        .msg.success { background: #efe; color: #3c3; border: 1px solid #cfc; }
+        .msg.info { background: #eef; color: #1565c0; border: 1px solid #cce; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="brand"><a href="/exams">在线考试系统</a></div>
+        <a onclick="logout()">退出登录</a>
+    </div>
+
+    <div class="main-content">
+        <a href="/exams" class="back-link">← 返回考试列表</a>
+        <div id="msg-box"></div>
+        <div class="page-header">
+            <h1 id="exam-title">加载中...</h1>
+            <div id="timer-box" style="display:none;"></div>
+        </div>
+        <div class="card" id="exam-info-card"></div>
+        <div id="exam-body"></div>
+        <div id="submit-bar-area"></div>
+    </div>
+
+    <!-- 编辑考试弹窗（仅教师可见） -->
+    <div class="modal" id="edit-modal">
+        <div class="modal-content" style="width:500px;">
+            <h2>编辑考试</h2>
+            <div id="edit-msg"></div>
+            <form id="edit-form">
+                <div class="form-group"><label>考试名称</label><input type="text" id="edit-title" required placeholder="如：Python基础测验"></div>
+                <div class="form-group"><label>描述说明</label><textarea id="edit-desc" placeholder="简要说明考试范围..." style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:14px; height:80px; resize:vertical;"></textarea></div>
+                <div class="form-group"><label>考试时长（分钟）</label><input type="number" id="edit-duration" value="60" min="1" max="300"></div>
+                <div class="form-group"><label>题目数量</label><input type="number" id="edit-qcount" value="5" min="1" max="100"></div>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeEditModal()">取消</button>
+                    <button type="submit" style="background:#27ae60">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const EXAM_ID = {{ exam_id }};
+        const ROLE = "{{ role }}";
+        let questions = [];
+        let examData = null;
+        let submittedScore = null;
+        let timerSeconds = 0;
+        let timerInterval = null;
+
+        async function loadExam() {
+            try {
+                const [examRes, questRes] = await Promise.all([
+                    fetch(`/api/exams/${EXAM_ID}`),
+                    fetch(`/api/exams/${EXAM_ID}/questions`)
+                ]);
+                const examJson = await examRes.json();
+                const questJson = await questRes.json();
+
+                if (examJson.code !== 200 || questJson.code !== 200) {
+                    document.getElementById('msg-box').innerHTML = '<div class="msg error">加载考试失败：' + (examJson.message || questJson.message) + '</div>';
+                    return;
+                }
+
+                examData = examJson.data;
+                questions = questJson.data;
+
+                document.getElementById('exam-title').textContent = examData.title;
+
+                // Render exam info
+                const infoCard = document.getElementById('exam-info-card');
+                infoCard.innerHTML = `
+                    <div class="info-grid">
+                        <div class="info-item"><div class="label">考试时长</div><div class="value">${examData.duration}分钟</div></div>
+                        <div class="info-item"><div class="label">题目数量</div><div class="value">${examData.question_count}题</div></div>
+                        <div class="info-item"><div class="label">总分</div><div class="value">${examData.total_score}分</div></div>
+                        <div class="info-item"><div class="label">描述</div><div class="value" style="font-size:14px;font-weight:normal">${examData.description || '无'}</div></div>
+                    </div>`;
+
+                // ====== STUDENT VIEW ======
+                if (ROLE === 'student') {
+                    if (examData.is_published !== 1) {
+                        document.getElementById('exam-body').innerHTML = '<div class="card"><div class="already-submitted"><div class="icon">🔒</div><p>此考试尚未发布，无法参加。</p></div></div>';
+                        return;
+                    }
+
+                    // Check if already submitted
+                    const myScoresRes = await fetch('/api/scores/my');
+                    const myScoresJson = await myScoresRes.json();
+                    if (myScoresJson.code === 200) {
+                        const myScore = (myScoresJson.data.items || []).find(s => s.exam_id === EXAM_ID);
+                        if (myScore) {
+                            showStudentResult(myScore);
+                            return;
+                        }
+                    }
+
+                    // Show exam-taking interface
+                    startStudentExam();
+
+                // ====== TEACHER/ADMIN VIEW ======
+                } else {
+                    showTeacherView();
+                }
+
+            } catch(e) {
+                console.error(e);
+                document.getElementById('msg-box').innerHTML = '<div class="msg error">加载失败</div>';
+            }
+        }
+
+        function showStudentResult(score) {
+            const body = document.getElementById('exam-body');
+            const scoreColor = score.score >= 60 ? '#27ae60' : (score.score >= 40 ? '#f39c12' : '#e74c3c');
+            body.innerHTML = `
+                <div class="card">
+                    <div class="score-display">
+                        <div class="icon" style="font-size:64px;margin-bottom:10px;">${score.score >= 60 ? '🏆' : (score.score >= 40 ? '👍' : '😢')}</div>
+                        <div class="big-score" style="color:${scoreColor}">${score.score}分</div>
+                        <div class="total">满分 ${examData.total_score} 分</div>
+                        <div style="margin-top:20px; color:#888; font-size:14px;">
+                            <p>提交时间：${score.submitted_at || '-'}</p>
+                            <p>状态：${score.status === 'scored' ? '已评分' : '待教师评分'}</p>
+                        </div>
+                        <div style="margin-top:20px;">
+                            <button class="success" onclick="location.href='/scores'">查看所有成绩</button>
+                        </div>
+                    </div>
+                </div>`;
+            document.getElementById('submit-bar-area').style.display = 'none';
+        }
+
+        function startStudentExam() {
+            const body = document.getElementById('exam-body');
+            const progress = document.getElementById('submit-bar-area');
+
+            // Timer
+            timerSeconds = examData.duration * 60;
+            startTimer();
+
+            // Render questions
+            body.innerHTML = questions.map((q, idx) => `
+                <div class="question-card" id="qcard-${q.id}">
+                    <div class="q-num">第 ${idx + 1} 题 · ${q.difficulty === 'easy' ? '简单' : q.difficulty === 'medium' ? '中等' : '困难'} · ${q.score}分</div>
+                    <div class="q-title">${q.title}</div>
+                    <div class="q-content">${q.content}</div>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+                        <span style="font-weight:bold; color:#667eea;">您的答案：</span>
+                        ${q.option_a ? `<span style="padding:8px 12px; background:#f8f9fa; border-radius:6px; font-size:13px;">A. ${q.option_a}</span>` : ''}
+                        ${q.option_b ? `<span style="padding:8px 12px; background:#f8f9fa; border-radius:6px; font-size:13px;">B. ${q.option_b}</span>` : ''}
+                        ${q.option_c ? `<span style="padding:8px 12px; background:#f8f9fa; border-radius:6px; font-size:13px;">C. ${q.option_c}</span>` : ''}
+                        ${q.option_d ? `<span style="padding:8px 12px; background:#f8f9fa; border-radius:6px; font-size:13px;">D. ${q.option_d}</span>` : ''}
+                    </div>
+                    <div style="margin-top:12px;">
+                        <input type="text" id="answer-${q.id}"
+                            placeholder="请在此输入您的答案（如：A、B、C、D，支持大小写）"
+                            style="width:200px; padding:8px 12px; border:2px solid #667eea; border-radius:6px; font-size:16px; font-weight:bold; outline:none; letter-spacing:2px;"
+                            oninput="onAnswerInput(${q.id})">
+                    </div>
+                </div>`).join('');
+
+            // Progress bar
+            progress.innerHTML = `
+                <div class="submit-bar">
+                    <div class="progress-info">
+                        已答题：<b id="answered-count">0</b> / ${questions.length} 题
+                    </div>
+                    <div class="right">
+                        <button onclick="confirmSubmit()">提交试卷</button>
+                    </div>
+                </div>`;
+
+            updateProgress();
+        }
+
+        let studentAnswers = {};
+
+        function onAnswerInput(qid) {
+            const val = document.getElementById('answer-' + qid).value.trim().toUpperCase();
+            if (val) {
+                studentAnswers[qid] = val;
+                document.getElementById('answer-' + qid).style.borderColor = '#27ae60';
+                document.getElementById('answer-' + qid).style.background = '#f0fff4';
+            } else {
+                delete studentAnswers[qid];
+                document.getElementById('answer-' + qid).style.borderColor = '#667eea';
+                document.getElementById('answer-' + qid).style.background = 'white';
+            }
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const el = document.getElementById('answered-count');
+            if (el) el.textContent = Object.keys(studentAnswers).length;
+        }
+
+        function startTimer() {
+            updateTimerDisplay();
+            document.getElementById('timer-box').style.display = 'inline-block';
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                updateTimerDisplay();
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    doSubmit();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const el = document.getElementById('timer-box');
+            if (!el) return;
+            const m = Math.floor(timerSeconds / 60);
+            const s = timerSeconds % 60;
+            el.textContent = `剩余时间：${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            el.className = timerSeconds < 300 ? 'timer warning' : (timerSeconds < 60 ? 'timer danger' : 'timer');
+        }
+
+        function confirmSubmit() {
+            const unanswered = questions.length - Object.keys(studentAnswers).length;
+            if (unanswered > 0) {
+                if (!confirm(`还有 ${unanswered} 道题未作答，确定要提交吗？`)) return;
+            } else {
+                if (!confirm('确定要提交试卷吗？提交后将无法修改。')) return;
+            }
+            doSubmit();
+        }
+
+        async function doSubmit() {
+            clearInterval(timerInterval);
+            const msgBox = document.getElementById('msg-box');
+            msgBox.innerHTML = '<div class="msg info">正在提交，请稍候...</div>';
+
+            const res = await fetch('/api/scores/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ exam_id: EXAM_ID, answers: studentAnswers })
+            });
+            const data = await res.json();
+
+            document.getElementById('submit-bar-area').innerHTML = '';
+            document.getElementById('timer-box').style.display = 'none';
+
+            if (data.code === 200) {
+                msgBox.innerHTML = '<div class="msg success">提交成功！请等待教师评分。</div>';
+                setTimeout(() => { location.href = '/scores'; }, 2000);
+            } else {
+                msgBox.innerHTML = '<div class="msg error">提交失败：' + data.message + '</div>';
+            }
+        }
+
+        // ====== TEACHER VIEW ======
+        function showTeacherView() {
+            const body = document.getElementById('exam-body');
+            document.getElementById('submit-bar-area').style.display = 'none';
+
+            let html = `<div class="card"><h2>题目列表（${questions.length}题）</h2>`;
+            questions.forEach((q, idx) => {
+                html += `
+                    <div class="question-card" style="border-left-color: ${q.difficulty === 'easy' ? '#27ae60' : q.difficulty === 'medium' ? '#f39c12' : '#e74c3c'}">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div class="q-num" style="margin:0">第${idx+1}题 · ${q.difficulty==='easy'?'简单':q.difficulty==='medium'?'中等':'困难'} · ${q.score}分</div>
+                            <span class="stat-badge ${q.difficulty==='easy'?'high':q.difficulty==='medium'?'mid':'low'}">${q.category}</span>
+                        </div>
+                        <div class="q-title" style="margin-top:8px">${q.title}</div>
+                        <div class="q-content">${q.content}</div>
+                        ${q.option_a ? `<div style="padding:4px 0; font-size:13px;">A. ${q.option_a}</div>` : ''}
+                        ${q.option_b ? `<div style="padding:4px 0; font-size:13px;">B. ${q.option_b}</div>` : ''}
+                        ${q.option_c ? `<div style="padding:4px 0; font-size:13px;">C. ${q.option_c}</div>` : ''}
+                        ${q.option_d ? `<div style="padding:4px 0; font-size:13px;">D. ${q.option_d}</div>` : ''}
+                        <div style="margin-top:10px; padding:8px; background:#fff3cd; border-radius:6px; font-size:13px;">
+                            <b>正确答案：${q.answer}</b>
+                        </div>
+                    </div>`;
+            });
+            html += '</div>';
+
+            // Add score management section
+            html += `<div class="card"><h2>成绩管理</h2>`;
+
+            fetch(`/api/scores/exam/${EXAM_ID}`).then(r => r.json()).then(data => {
+                if (data.code === 200 && data.data.items && data.data.items.length > 0) {
+                    let scoreHtml = `<table class="stat-table"><thead><tr><th>学生</th><th>得分</th><th>状态</th><th>提交时间</th><th>操作</th></tr></thead><tbody>`;
+                    data.data.items.forEach(s => {
+                        const scoreClass = s.score >= 60 ? 'high' : (s.score >= 40 ? 'mid' : 'low');
+                        scoreHtml += `<tr>
+                            <td>${s.student_name}</td>
+                            <td><b>${s.score}</b></td>
+                            <td><span class="stat-badge ${s.status === 'scored' ? 'high' : 'mid'}">${s.status === 'scored' ? '已评分' : '待评分'}</span></td>
+                            <td>${s.submitted_at || '-'}</td>
+                            <td>
+                                ${s.status !== 'scored' ? `<button class="success" onclick="gradeOne(${s.id})">评分</button>` : '<span style="color:#888">-</span>'}
+                            </td>
+                        </tr>`;
+                    });
+                    scoreHtml += '</tbody></table>';
+                    document.getElementById('score-table-container') && (document.getElementById('score-table-container').innerHTML = scoreHtml);
+                } else {
+                    document.getElementById('score-table-container') && (document.getElementById('score-table-container').innerHTML = '<p style="color:#888;padding:20px;text-align:center">暂无提交记录</p>');
+                }
+            });
+
+            html += `<div id="score-table-container">加载中...</div>`;
+            html += `<div style="margin-top:15px;"><button class="success" onclick="batchGrade()">批量评分全部待评分卷</button></div>`;
+            html += '</div>';
+
+            body.innerHTML = html;
+
+            // Publish/Delete buttons for teachers
+            const header = document.getElementById('exam-info-card');
+            if (examData.is_published !== 1) {
+                header.innerHTML += `<div style="margin-top:10px;"><button class="success" onclick="publishExam()">发布考试</button></div>`;
+            }
+            header.innerHTML += `<div style="margin-top:10px;"><button onclick="showEditModal()" style="background:#f39c12">编辑考试</button></div>`;
+            header.innerHTML += `<div style="margin-top:10px;"><button class="danger" onclick="deleteExam()">删除考试</button></div>`;
+        }
+
+        // ====== 编辑考试弹窗 ======
+        function showEditModal() {
+            document.getElementById('edit-title').value = examData.title || '';
+            document.getElementById('edit-desc').value = examData.description || '';
+            document.getElementById('edit-duration').value = examData.duration || 60;
+            document.getElementById('edit-qcount').value = examData.question_count || 5;
+            document.getElementById('edit-modal').classList.add('show');
+        }
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('show');
+        }
+
+        document.getElementById('edit-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const payload = {
+                title: document.getElementById('edit-title').value,
+                description: document.getElementById('edit-desc').value,
+                duration: parseInt(document.getElementById('edit-duration').value),
+                question_count: parseInt(document.getElementById('edit-qcount').value)
+            };
+            const res = await fetch(`/api/exams/${EXAM_ID}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            const msgBox = document.getElementById('msg-box');
+            if (data.code === 200) {
+                msgBox.innerHTML = '<div class="msg success">考试更新成功！</div>';
+                closeEditModal();
+                setTimeout(() => { msgBox.innerHTML = ''; loadExam(); }, 800);
+            } else {
+                msgBox.innerHTML = '<div class="msg error">更新失败：' + data.message + '</div>';
+            }
+        });
+
+        async function gradeOne(scoreId) {
+            const res = await fetch(`/api/scores/${scoreId}/grade`, { method: 'POST' });
+            const data = await res.json();
+            const msgBox = document.getElementById('msg-box');
+            if (data.code === 200) {
+                msgBox.innerHTML = `<div class="msg success">评分成功！得分：${data.data.score}</div>`;
+                setTimeout(() => loadExam(), 1000);
+            } else {
+                msgBox.innerHTML = `<div class="msg error">评分失败：${data.message}</div>`;
+            }
+        }
+
+        async function batchGrade() {
+            const res = await fetch(`/api/scores/exam/${EXAM_ID}/batch-grade`, { method: 'POST' });
+            const data = await res.json();
+            const msgBox = document.getElementById('msg-box');
+            msgBox.innerHTML = `<div class="msg success">批量评分完成：${data.message}</div>`;
+            setTimeout(() => loadExam(), 1000);
+        }
+
+        async function publishExam() {
+            await fetch(`/api/exams/${EXAM_ID}/publish`, { method: 'POST' });
+            loadExam();
+        }
+
+        async function deleteExam() {
+            if (!confirm('确定要删除此考试吗？所有相关成绩也将清除！')) return;
+            const res = await fetch(`/api/exams/${EXAM_ID}`, { method: 'DELETE' });
+            if (res.status === 200) location.href = '/exams';
+        }
+
+        async function logout() {
+            await fetch('/auth/logout', { method: 'POST' });
+            location.href = '/auth/login';
+        }
+
+        loadExam();
+    </script>
+</body>
+</html>
